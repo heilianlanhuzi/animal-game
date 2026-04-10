@@ -49,7 +49,7 @@ body{overflow:hidden;background:#6b8f4a;touch-action:none;-webkit-user-select:no
 
 <div id="game-area">
     <button class="btn" id="hint-btn">💡</button>
-<button class="btn" id="replay-btn">🔄</button>
+    <button class="btn" id="replay-btn">🔄</button>
 <button class="btn" id="sound-btn">🔊</button>
 <div class="card" id="card1"><img src="data:image/png;base64,DOG1_DATA" alt="动物1"></div>
 <div class="card" id="card2"><img src="data:image/png;base64,CAT_DATA" alt="动物2"></div>
@@ -96,13 +96,16 @@ function playLock(){if(!soundOn||!audioCtx)return;var t=audioCtx.currentTime;[52
 function playWin(){if(!soundOn||!audioCtx)return;var t=audioCtx.currentTime;[523,659,784,1047].forEach(function(f,i){var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0,t+i0.15);g.gain.linearRampToValueAtTime(0.15,t+i0.15+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+i0.15+0.5);o.connect(g);g.connect(audioCtx.destination);o.start(t+i0.15);o.stop(t+i*0.15+0.5)})}
 function playErase(){if(!soundOn||!audioCtx)return;var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sawtooth';o.frequency.value=200+Math.random()*100;g.gain.setValueAtTime(0.02,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.03);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+0.03)}
 
+// 卡片数据
 var cardData=[
-{id:'card1',targetX:0,targetY:0,locked:false,rotation:0,lastClickAngle:0},
-{id:'card2',targetX:0,targetY:0,locked:false,rotation:0,lastClickAngle:0},
-{id:'card3',targetX:0,targetY:0,locked:false,rotation:0,lastClickAngle:0}
+{el:null,targetX:0,targetY:0,locked:false,rotation:0,lastClickAngle:0},
+{el:null,targetX:0,targetY:0,locked:false,rotation:0,lastClickAngle:0},
+{el:null,targetX:0,targetY:0,locked:false,rotation:0,lastClickAngle:0}
 ];
-var dragging=false,dragCard=null,dragOx,dragOy;
-var rotating=false,rotStartAngle,rotStartRot,touches={};
+
+// 交互状态
+var dragIdx=-1,dragOx=0,dragOy=0;
+var rotIdx=-1,rotStartAngle=0,rotStartRot=0;
 var gameState='start',phase='memory';
 
 var startScreen=document.getElementById('start-screen');
@@ -110,50 +113,62 @@ var gameArea=document.getElementById('game-area');
 var winScreen=document.getElementById('win-screen');
 var hintOverlay=document.getElementById('hint-overlay');
 var sketchCanvas=document.getElementById('sketch-canvas');
-var ctx=sketchCanvas.getContext('2d');
-    document.getElementById('start-btn').addEventListener('click',function(){
+var sketchCtx=sketchCanvas.getContext('2d');
+
+document.getElementById('start-btn').addEventListener('click',function(){
 initAudio();startScreen.style.display='none';gameArea.style.display='block';setupGame();
 });
-
 document.getElementById('sound-btn').addEventListener('click',function(){
 soundOn=!soundOn;this.textContent=soundOn?'🔊':'🔇';
 });
-
 document.getElementById('replay-btn').addEventListener('click',function(){
 winScreen.style.display='none';setupGame();
 });
-
 document.getElementById('hint-btn').addEventListener('click',function(){
 hintOverlay.style.display='flex';initSketch();
 });
-
 document.getElementById('hint-close').addEventListener('click',function(){
 hintOverlay.style.display='none';
 });
 
+// 初始化卡片引用
+function initCards(){
+for(var i=0;i<3;i++){
+cardData[i].el=document.getElementById('card'+(i+1));
+}
+}
+
 function setupGame(){
+initCards();
 var w=window.innerWidth,h=window.innerHeight,cardSize=120;
 var positions=[
 {x:Math.max(20,(w-cardSize2)/4),y:Math.max(60,(h-cardSize2)/4)},
 {x:(w-cardSize)/2,y:(h-cardSize)/2},
 {x:Math.min(w-cardSize-20,w-(w-cardSize2)/4-cardSize),y:Math.min(h-cardSize-60,h-(h-cardSize2)/4-cardSize)}
 ];
-cardData.forEach(function(c,i){
-c.targetX=positions[i].x;c.targetY=positions[i].y;c.locked=false;c.rotation=0;c.lastClickAngle=0;
-var el=document.getElementById(c.id);
-el.style.left=c.targetX+'px';el.style.top=c.targetY+'px';el.style.transform='rotate(0deg)';
-el.classList.remove('locked');
-});
+for(var i=0;i<3;i++){
+var c=cardData[i];
+c.targetX=positions[i].x;c.targetY=positions[i].y;
+c.locked=false;c.rotation=0;c.lastClickAngle=0;
+c.el.style.transition='none';
+c.el.style.left=c.targetX+'px';
+c.el.style.top=c.targetY+'px';
+c.el.style.transform='rotate(0deg)';
+c.el.classList.remove('locked');
+}
 phase='memory';gameState='playing';
 setTimeout(function(){
 phase='scatter';
-cardData.forEach(function(c){
-var el=document.getElementById(c.id);
-var rx=Math.random()(w-cardSize-40)+20,ry=Math.random()(h-cardSize-40)+20;
+for(var i=0;i<3;i++){
+var c=cardData[i];
+var rx=Math.random()(w-cardSize-40)+20;
+var ry=Math.random()(h-cardSize-40)+20;
 var rr=Math.floor(Math.random()*90)-45;
-c.rotation=rr;el.style.left=rx+'px';el.style.top=ry+'px';
-el.style.transform='rotate('+rr+'deg)';
-});
+c.rotation=rr;
+c.el.style.left=rx+'px';
+c.el.style.top=ry+'px';
+c.el.style.transform='rotate('+rr+'deg)';
+}
 setTimeout(function(){phase='play'},500);
 },2000);
 }
@@ -161,115 +176,165 @@ setTimeout(function(){phase='play'},500);
 function initSketch(){
 var box=document.querySelector('#hint-overlay .hint-box');
 sketchCanvas.width=box.offsetWidth;sketchCanvas.height=box.offsetHeight;
-ctx.fillStyle='#f5f5e8';ctx.fillRect(0,0,sketchCanvas.width,sketchCanvas.height);
-ctx.strokeStyle='rgba(80,80,80,0.7)';ctx.lineWidth=2;
-for(var i=0;i<200;i++){ctx.beginPath();ctx.moveTo(Math.random()*sketchCanvas.width,Math.random()*sketchCanvas.height);ctx.lineTo(Math.random()*sketchCanvas.width,Math.random()*sketchCanvas.height);ctx.stroke()}
-for(var j=0;j<10;j++){ctx.beginPath();var cx=Math.random()sketchCanvas.width,cy=Math.random()sketchCanvas.height;for(var k=0;k<30;k++){var angle=k0.5,r=k2;ctx.lineTo(cx+Math.cos(angle)*r,cy+Math.sin(angle)*r)}ctx.stroke()}
-// Cross-hatching
-for(var m=0;m<50;m++){ctx.beginPath();var sx=Math.random()*sketchCanvas.width,sy=Math.random()*sketchCanvas.height;ctx.moveTo(sx,sy);ctx.lineTo(sx+40+Math.random()*60,sy+40+Math.random()60);ctx.stroke()}
+sketchCtx.fillStyle='#f5f5e8';sketchCtx.fillRect(0,0,sketchCanvas.width,sketchCanvas.height);
+sketchCtx.strokeStyle='rgba(80,80,80,0.7)';sketchCtx.lineWidth=2;
+for(var i=0;i<200;i++){sketchCtx.beginPath();sketchCtx.moveTo(Math.random()*sketchCanvas.width,Math.random()*sketchCanvas.height);sketchCtx.lineTo(Math.random()*sketchCanvas.width,Math.random()*sketchCanvas.height);sketchCtx.stroke()}
+for(var j=0;j<10;j++){sketchCtx.beginPath();var cx=Math.random()sketchCanvas.width,cy=Math.random()sketchCanvas.height;for(var k=0;k<30;k++){var angle=k0.5,r=k2;sketchCtx.lineTo(cx+Math.cos(angle)*r,cy+Math.sin(angle)*r)}sketchCtx.stroke()}
+for(var m=0;m<50;m++){sketchCtx.beginPath();var sx=Math.random()*sketchCanvas.width,sy=Math.random()*sketchCanvas.height;sketchCtx.moveTo(sx,sy);sketchCtx.lineTo(sx+40+Math.random()*60,sy+40+Math.random()60);sketchCtx.stroke()}
 var isErasing=false;
 function startErase(x,y){isErasing=true;erase(x,y)}
 function moveErase(x,y){if(isErasing){erase(x,y);playErase()}}
 function endErase(){isErasing=false}
-function erase(x,y){ctx.globalCompositeOperation='destination-out';ctx.beginPath();ctx.arc(x,y,20,0,Math.PI2);ctx.fill();ctx.globalCompositeOperation='source-over'}
+function erase(x,y){sketchCtx.globalCompositeOperation='destination-out';sketchCtx.beginPath();sketchCtx.arc(x,y,20,0,Math.PI2);sketchCtx.fill();sketchCtx.globalCompositeOperation='source-over'}
 sketchCanvas.onmousedown=function(e){var r=sketchCanvas.getBoundingClientRect();startErase(e.clientX-r.left,e.clientY-r.top)};
 sketchCanvas.onmousemove=function(e){var r=sketchCanvas.getBoundingClientRect();moveErase(e.clientX-r.left,e.clientY-r.top)};
 sketchCanvas.onmouseup=endErase;sketchCanvas.onmouseleave=endErase;
 sketchCanvas.ontouchstart=function(e){e.preventDefault();var r=sketchCanvas.getBoundingClientRect();var t=e.touches[0];startErase(t.clientX-r.left,t.clientY-r.top)},{passive:false};
-sketchCanvas.ontouchmove=function(e){e.preventDefault();var r=sketchCanvas.getBoundingClientRect();var t=e.touches[0];moveErase(t.clientX-r.left,t.clientY-r.top)},{passive:false};
+ sketchCanvas.ontouchmove=function(e){e.preventDefault();var r=sketchCanvas.getBoundingClientRect();var t=e.touches[0];moveErase(t.clientX-r.left,t.clientY-r.top)},{passive:false};
 sketchCanvas.ontouchend=endErase;
 }
-    function getCardCenter(el){var r=el.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}}
 
-function checkWin(c){
+function getCardCenter(c){
+var r=c.el.getBoundingClientRect();
+return{x:r.left+r.width/2,y:r.top+r.height/2};
+}
+
+function checkWin(idx){
+var c=cardData[idx];
 if(c.locked)return;
 var a=Math.abs(c.rotation%360);if(a>180)a=360-a;
 var rounded=Math.round(c.rotation/15)*15;
 if(Math.abs(c.rotation-rounded)<2 && Math.abs(c.rotation-c.lastClickAngle)>=10){playClick();c.lastClickAngle=c.rotation}
-var el=document.getElementById(c.id);var cx=getCardCenter(el);
-var dist=Math.sqrt(Math.pow(cx.x-(c.targetX+60),2)+Math.pow(cx.y-(c.targetY+60),2));
+var center=getCardCenter(c);
+var dist=Math.sqrt(Math.pow(center.x-(c.targetX+60),2)+Math.pow(center.y-(c.targetY+60),2));
 if(dist<50 && a<1){
-c.locked=true;el.classList.add('locked');
-el.style.transition='all 0.3s ease';el.style.left=c.targetX+'px';el.style.top=c.targetY+'px';el.style.transform='rotate(0deg)';
-setTimeout(function(){el.style.transition=''},300);
+c.locked=true;c.el.classList.add('locked');
+c.el.style.transition='all 0.3s ease';
+c.el.style.left=c.targetX+'px';c.el.style.top=c.targetY+'px';
+c.el.style.transform='rotate(0deg)';
+setTimeout(function(){c.el.style.transition=''},300);
 playLock();
-if(cardData.every(function(cd){return cd.locked})){setTimeout(function(){playWin();winScreen.style.display='flex'},500)}
+var allLocked=true;
+for(var i=0;i<3;i++){if(!cardData[i].locked){allLocked=false;break}}
+if(allLocked){setTimeout(function(){playWin();winScreen.style.display='flex'},500)}
 }
 }
-
-// === 鼠标事件（修复：追踪具体卡片）===
-document.addEventListener('mousedown',function(e){
-if(gameState!=='playing'||phase!=='play')return;
-initAudio();
-var cardEl=e.target.closest('.card');
-if(!cardEl)return;
-var c=cardData.find(function(cd){return cd.id===cardEl.id});
-if(!c||c.locked)return;
-if(e.shiftKey){
-e.preventDefault();rotating=true;
-var center=getCardCenter(cardEl);
-rotStartAngle=Math.atan2(e.clientY-center.y,e.clientX-center.x)*180/Math.PI;
-rotStartRot=c.rotation;
-}else{
-e.preventDefault();dragging=true;dragCard=cardEl;
-dragOx=e.clientX-cardEl.offsetLeft;dragOy=e.clientY-cardEl.offsetTop;
-}
-});
-
-document.addEventListener('mousemove',function(e){
-if(gameState!=='playing'||phase!=='play')return;
-if(rotating && dragCard){
-var c=cardData.find(function(cd){return cd.id===dragCard.id});if(!c)return;
-var center=getCardCenter(dragCard);
-var angle=Math.atan2(e.clientY-center.y,e.clientX-center.x)*180/Math.PI;
-c.rotation=rotStartRot+(angle-rotStartAngle);
-dragCard.style.transform='rotate('+c.rotation+'deg)';checkWin(c);
-}else if(dragging && dragCard){
-var c=cardData.find(function(cd){return cd.id===dragCard.id});if(!c)return;
-dragCard.style.left=(e.clientX-dragOx)+'px';dragCard.style.top=(e.clientY-dragOy)+'px';
-}
-});
-
-document.addEventListener('mouseup',function(){dragging=false;dragCard=null;rotating=false});
 
 // === 触屏事件 ===
 document.addEventListener('touchstart',function(e){
 if(gameState!=='playing'||phase!=='play')return;
 initAudio();
-var touch=e.touches[0];
-var el=document.elementFromPoint(touch.clientX,touch.clientY);
-if(el)el=el.closest('.card');
-if(!el)return;
-var c=cardData.find(function(cd){return cd.id===el.id});
-if(!c||c.locked)return;
 if(e.touches.length===2){
-var t1=e.touches[0],t2=e.touches[1];rotating=true;
-var center=getCardCenter(el);
+// 双指旋转
+var t1=e.touches[0],t2=e.touches[1];
+for(var i=0;i<3;i++){
+var c=cardData[i];
+if(c.locked)continue;
+var r=c.el.getBoundingClientRect();
+if(t1.clientX>=r.left && t1.clientX<=r.right && t1.clientY>=r.top && t1.clientY<=r.bottom){
+rotIdx=i;
+var center=getCardCenter(c);
 rotStartAngle=Math.atan2(t2.clientY-t1.clientY,t2.clientX-t1.clientX)*180/Math.PI;
 rotStartRot=c.rotation;
-}else{
-dragging=true;dragCard=el;
-dragOx=touch.clientX-el.offsetLeft;dragOy=touch.clientY-el.offsetTop;
+break;
 }
-},{passive:false});
-    document.addEventListener('touchmove',function(e){
-if(gameState!=='playing'||phase!=='play')return;
-e.preventDefault();
-if(rotating && e.touches.length===2 && dragCard){
-var t1=e.touches[0],t2=e.touches[1];var el=dragCard;
-var c=cardData.find(function(cd){return cd.id===el.id});if(!c)return;
-var center=getCardCenter(el);
-var angle=Math.atan2(t2.clientY-t1.clientY,t2.clientX-t1.clientX)*180/Math.PI;
-c.rotation=rotStartRot+(angle-rotStartAngle);
-el.style.transform='rotate('+c.rotation+'deg)';checkWin(c);
-}else if(dragging && dragCard && e.touches.length===1){
-var touch=e.touches[0];var el=dragCard;
-var c=cardData.find(function(cd){return cd.id===el.id});if(!c)return;
-el.style.left=(touch.clientX-dragOx)+'px';el.style.top=(touch.clientY-dragOy)+'px';
+}
+}else{
+// 单指拖拽
+var t=e.touches[0];
+for(var i=0;i<3;i++){
+var c=cardData[i];
+if(c.locked)continue;
+var r=c.el.getBoundingClientRect();
+if(t.clientX>=r.left-20 && t.clientX<=r.right+20 && t.clientY>=r.top-20 && t.clientY<=r.bottom+20){
+dragIdx=i;
+dragOx=t.clientX-parseInt(c.el.style.left);
+dragOy=t.clientY-parseInt(c.el.style.top);
+break;
+}
+}
 }
 },{passive:false});
 
-document.addEventListener('touchend',function(){dragging=false;dragCard=null;rotating=false});
+document.addEventListener('touchmove',function(e){
+if(gameState!=='playing'||phase!=='play')return;
+e.preventDefault();
+if(rotIdx>=0 && e.touches.length===2){
+var t1=e.touches[0],t2=e.touches[1];
+var c=cardData[rotIdx];
+var center=getCardCenter(c);
+var angle=Math.atan2(t2.clientY-t1.clientY,t2.clientX-t1.clientX)*180/Math.PI;
+c.rotation=rotStartRot+(angle-rotStartAngle);
+c.el.style.transform='rotate('+c.rotation+'deg)';
+checkWin(rotIdx);
+}else if(dragIdx>=0 && e.touches.length===1){
+var t=e.touches[0];
+var c=cardData[dragIdx];
+c.el.style.left=(t.clientX-dragOx)+'px';
+c.el.style.top=(t.clientY-dragOy)+'px';
+}
+},{passive:false});
+
+document.addEventListener('touchend',function(e){
+dragIdx=-1;
+if(e.touches.length<2)rotIdx=-1;
+});
+
+// === 鼠标事件 ===
+回复 王红梅: 
+电脑端还是不行，手机端也出问题了，只能玩一次
+document.addEventListener('mousedown',function(e){
+if(gameState!=='playing'||phase!=='play')return;
+initAudio();
+if(e.shiftKey){
+// Shift+鼠标旋转
+for(var i=0;i<3;i++){
+var c=cardData[i];
+if(c.locked)continue;
+var r=c.el.getBoundingClientRect();
+if(e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom){
+rotIdx=i;
+var center=getCardCenter(c);
+rotStartAngle=Math.atan2(e.clientY-center.y,e.clientX-center.x)*180/Math.PI;
+rotStartRot=c.rotation;
+e.preventDefault();break;
+}
+}
+}else{
+// 鼠标拖拽
+for(var i=0;i<3;i++){
+var c=cardData[i];
+if(c.locked)continue;
+var r=c.el.getBoundingClientRect();
+if(e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom){
+dragIdx=i;
+dragOx=e.clientX-parseInt(c.el.style.left);
+dragOy=e.clientY-parseInt(c.el.style.top);
+e.preventDefault();break;
+}
+}
+}
+});
+
+document.addEventListener('mousemove',function(e){
+if(gameState!=='playing'||phase!=='play')return;
+if(rotIdx>=0){
+var c=cardData[rotIdx];
+var center=getCardCenter(c);
+var angle=Math.atan2(e.clientY-center.y,e.clientX-center.x)*180/Math.PI;
+c.rotation=rotStartRot+(angle-rotStartAngle);
+c.el.style.transform='rotate('+c.rotation+'deg)';
+checkWin(rotIdx);
+}else if(dragIdx>=0){
+var c=cardData[dragIdx];
+c.el.style.left=(e.clientX-dragOx)+'px';
+c.el.style.top=(e.clientY-dragOy)+'px';
+}
+});
+
+document.addEventListener('mouseup',function(){
+dragIdx=-1;rotIdx=-1;
+});
 </script>
 </body>
-</html>
+</html>   
